@@ -14,6 +14,8 @@
     <script src="js/leaflet.draw.js"></script>
     <script src="js/leaflet-providers.js"></script>
     <script src="js/FileSaver.js"></script>
+    <script src="js/shpwrite.js"></script>
+    <script src="js/shp.js"></script>
 </head>
 <body>
 <div id="lmap"></div>
@@ -23,7 +25,7 @@
         <a class="nav-link dropdown-toggle" data-toggle="dropdown" href="#" role="button" aria-haspopup="true"
            aria-expanded="false">Import</a>
         <div class="dropdown-menu">
-            <input type="file" id="open-file-dialog" style="display: none"/>
+            <input type="file" multiple id="open-file-dialog" style="display: none"/>
             <a class="dropdown-item" href="#" id="open-file">File</a>
             <a class="dropdown-item" href="#">URL</a>
         </div>
@@ -34,7 +36,7 @@
            aria-expanded="false">Export</a>
         <div class="dropdown-menu">
             <a class="dropdown-item" id="btn-save-geojson" href="#">GeoJSON</a>
-            <a class="dropdown-item" href="#">Shapefile</a>
+            <a class="dropdown-item" id="btn-save-shp" href="#">Shapefile</a>
         </div>
     </li>
 
@@ -99,11 +101,23 @@
         if (fileBtn.files && fileBtn.files[0]) {
             var selectedFile = fileBtn.files[0];
             var reader = new FileReader();
-            reader.readAsText(selectedFile);
-            reader.onload = function (e) {
-                var json = JSON.parse(e.target.result);
-                JSONLayer.addData(json)
-            };
+
+            if (selectedFile.name.endsWith('zip')){
+                reader.readAsArrayBuffer(selectedFile);
+                reader.onload = function (e) {
+                    shp(e.target.result).then(function (geojson) {
+                        JSONLayer.addData(geojson);
+                    })
+                }
+            }
+            else{
+                reader.readAsText(selectedFile);
+                reader.onload = function (e) {
+                    var json = JSON.parse(e.target.result);
+                    JSONLayer.addData(json)
+                };
+            }
+
         }
     });
 
@@ -111,7 +125,12 @@
     btnSaveGeoJSON.click(function () {
         var data = JSONLayer.toGeoJSON();
         saveGeoJSON(data);
+    });
 
+    var btnSaveShp = $("#btn-save-shp");
+    btnSaveShp.click(function () {
+        var data = JSONLayer.toGeoJSON();
+        saveShp(data);
     });
 
     function saveGeoJSON(data) {
@@ -123,7 +142,19 @@
         };
         saveToFile(data, 'export');
     };
-    
+
+
+    function saveShp(data){
+        var options = {
+            folder: 'shapefiles',
+            types: {
+                point: 'points',
+                polygon: 'polygons',
+                polyline: 'polyline',
+
+            }};
+        shpwrite.download(data, options);
+    };
 </script>
 </body>
 </html>
