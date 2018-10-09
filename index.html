@@ -5,26 +5,125 @@
     <title>Flow GIS</title>
     <link rel="stylesheet" href="css/leaflet.css">
     <link rel="stylesheet" href="css/bootstrap.css">
-    <link rel="stylesheet" href="css/all.css">
+    <link rel="stylesheet" href="css/main.css">
+    <link rel="stylesheet" href="css/leaflet.draw.css">
 
     <script src="js/leaflet.js"></script>
     <script src="js/jquery-3.3.1.min.js"></script>
     <script src="js/bootstrap.bundle.js"></script>
-
+    <script src="js/leaflet.draw.js"></script>
+    <script src="js/leaflet-providers.js"></script>
+    <script src="js/FileSaver.js"></script>
 </head>
 <body>
-
 <div id="lmap"></div>
+
+<ul class="nav" id="nav-menu">
+    <li class="nav-item dropdown">
+        <a class="nav-link dropdown-toggle" data-toggle="dropdown" href="#" role="button" aria-haspopup="true"
+           aria-expanded="false">Import</a>
+        <div class="dropdown-menu">
+            <input type="file" id="open-file-dialog" style="display: none"/>
+            <a class="dropdown-item" href="#" id="open-file">File</a>
+            <a class="dropdown-item" href="#">URL</a>
+        </div>
+    </li>
+
+    <li class="nav-item dropdown">
+        <a class="nav-link dropdown-toggle" data-toggle="dropdown" href="#" role="button" aria-haspopup="true"
+           aria-expanded="false">Export</a>
+        <div class="dropdown-menu">
+            <a class="dropdown-item" id="btn-save-geojson" href="#">GeoJSON</a>
+            <a class="dropdown-item" href="#">Shapefile</a>
+        </div>
+    </li>
+
+    <li class="nav-item">
+        <a class="nav-link" href="#">Link</a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link disabled" href="#">Disabled</a>
+    </li>
+</ul>
+
 <script>
-    var map = L.map('lmap').setView([39, 116], 5);
+    var lmap = L.map('lmap').setView([39, 116], 5);
+    baseLayers = {
+        'Empty': L.tileLayer(''),
+        'Street': L.tileLayer.provider('OpenStreetMap.Mapnik'),
+        'Topography': L.tileLayer.provider('OpenTopoMap'),
+        'Gray Style': L.tileLayer.provider('CartoDB.Positron'),
+        'Light Color': L.tileLayer.provider('CartoDB.Voyager'),
+        'Dark Matter': L.tileLayer.provider('CartoDB.DarkMatter'),
+    };
+    layerControl = L.control.layers(baseLayers).setPosition('bottomright');
+    // add OpenStreetMap layer by default
+    baseLayers.Street.addTo(lmap);
+    layerControl.addTo(lmap);
+    lmap.zoomControl.setPosition('topright');
 
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-    }).addTo(map);
+    // edit map
+    var JSONLayer = new L.GeoJSON();
+    lmap.addLayer(JSONLayer);
+    lmap.addControl(new L.Control.Draw({
+        position: 'topright',
+        edit: {
+            featureGroup: JSONLayer,
+            poly: {
+                allowIntersection: false,
+            }
+        },
+        draw: {
+            polygon: {
+                allowIntersection: false,
+            },
+            circlemarker: false,
+            circle: false,
 
-    L.marker([39, 116]).addTo(map)
-        .bindPopup('Flow GIS!.')
-        .openPopup();
+        },
+    }));
+    lmap.on(L.Draw.Event.CREATED, function (event) {
+        var layer = event.layer;
+        JSONLayer.addLayer(layer);
+    })
+
+
+    // xingxiaoyue
+
+    var fileBtn = $("#open-file-dialog")[0];
+    $('#open-file').click(function () {
+        fileBtn.click();
+    });
+
+    fileBtn.addEventListener('change', function () {
+        if (fileBtn.files && fileBtn.files[0]) {
+            var selectedFile = fileBtn.files[0];
+            var reader = new FileReader();
+            reader.readAsText(selectedFile);
+            reader.onload = function (e) {
+                var json = JSON.parse(e.target.result);
+                JSONLayer.addData(json)
+            };
+        }
+    });
+
+    var btnSaveGeoJSON = $("#btn-save-geojson");
+    btnSaveGeoJSON.click(function () {
+        var data = JSONLayer.toGeoJSON();
+        saveGeoJSON(data);
+
+    });
+
+    function saveGeoJSON(data) {
+        function saveToFile(content, filename) {
+            var file = filename + '.geojson';
+            saveAs(new File([JSON.stringify(content)], file, {
+                type: "text/plain; charset=UTF-8"
+            }), file);
+        };
+        saveToFile(data, 'export');
+    };
+
 </script>
 </body>
 </html>
