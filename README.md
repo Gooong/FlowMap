@@ -1,3 +1,3 @@
 ## Flow Map
 
-Simple tools for visualize flows and trajectories 
+Simple tools for visualize geometries, flows and trajectories.
