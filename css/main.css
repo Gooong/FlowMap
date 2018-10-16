@@ -13,22 +13,61 @@ html, body {
     z-index: 1;
 }
 
+.leaflet-container {
+    background: url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAYAAADED76LAAAANElEQVQoU2O8e/fuf2VlZUYGLAAkB5bApggmBteJrAiZjWI0SAJkIrKVxCvAawVeRxLyJgB+Ajc1cwux9wAAAABJRU5ErkJggg==);
+}
+
+/* For leaflet popup */
+.leaflet-popup-content-wrapper {
+    border-radius: 2px;
+}
+
+.leaflet-popup-content {
+    margin: 5px;
+    padding: 10px 10px 0;
+    overflow-y: scroll;
+    overflow-x: hidden;
+}
+
+/* For geometry viewer property table */
+.view-geometry-property-table {
+    table-layout: fixed;
+    white-space: nowrap;
+    padding: 0;
+}
+
+.view-geometry-property-table th {
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.view-geometry-property-table td {
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.view-geometry-property-table .td-disabled {
+    color: #999999;
+}
+
+
 /*guojinxin*/
 
-#nav-menu{
+#nav-menu {
     position: absolute;
     z-index: 100;
 }
 
-#nav-menu li{
+#nav-menu {
     background: white;
 }
 
-.dropdown:hover>.dropdown-menu {
+.dropdown:hover > .dropdown-menu {
     display: block;
+    margin: 0;
 }
 
-.dropdown>.dropdown-toggle:active {
+.dropdown > .dropdown-toggle:active {
     /*Without this, clicking will make it sticky*/
     pointer-events: none;
 }
