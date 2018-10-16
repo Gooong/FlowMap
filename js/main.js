@@ -20,22 +20,6 @@ let lmap = L.map('lmap', {
 }).setView([39, 116], 5);
 lmap.zoomControl.setPosition('topright');
 
-let traLayer = new L.FeatureGroup();
-let JSONLayer = new L.GeoJSON([], {
-    pointToLayer: function (feature, latlng) {
-        return L.circleMarker(latlng);
-    }
-});
-
-lmap.addLayer(traLayer);
-lmap.addLayer(JSONLayer);
-
-
-let overlayLayers = {
-    'Trajectories': traLayer,
-    'Geometries': JSONLayer,
-};
-
 let baseLayers = {
     'Empty': L.tileLayer(''),
     'Street': L.tileLayer.provider('OpenStreetMap.Mapnik'),
@@ -45,9 +29,12 @@ let baseLayers = {
     'Dark Matter': L.tileLayer.provider('CartoDB.DarkMatter'),
 };
 baseLayers.Street.addTo(lmap);
-let layerControls = L.control.layers(baseLayers, overlayLayers).setPosition('bottomright').addTo(lmap);
+let layerControls = L.control.layers(baseLayers).setPosition('bottomright').addTo(lmap);
 
 // trajectory layer
+let traLayer = new L.FeatureGroup();
+layerControls.addOverlay(traLayer, 'Trajectories');
+
 let myMovingMarker = L.Marker.movingMarker([[39, 116], [22, 113]],
     [20000], {
         autostart: true,
@@ -55,29 +42,6 @@ let myMovingMarker = L.Marker.movingMarker([[39, 116], [22, 113]],
     });
 traLayer.addLayer(myMovingMarker);
 
-
-// edit map
-let drawControl = new L.Control.Draw({
-    position: 'topright',
-    edit: {
-        featureGroup: JSONLayer,
-        selectedPathOptions: {
-            maintainColor: true,
-            moveMarkers: true
-        }
-    },
-    draw: {
-        marker: false,
-        circle: false,
-    },
-});
-lmap.addControl(drawControl);
-
-lmap.on(L.Draw.Event.CREATED, function (event) {
-    let layer = event.layer;
-    //console.log(layer);
-    JSONLayer.addLayer(layer);
-});
 
 // flow layer
 let canvasRenderer = L.canvas();
@@ -114,12 +78,9 @@ Papa.parse('data/Flowmap_Cities_one_to_many.csv', {
                 }
             },
             style: function (geoJsonFeature) {
-                // use leaflet's path styling options
-
                 // since the GeoJSON feature properties are modified by the layer,
                 // developers can rely on the "isOrigin" property to set different
                 // symbols for origin vs destination CircleMarker stylings
-
                 if (geoJsonFeature.properties.isOrigin) {
                     return {
                         renderer: canvasRenderer, // recommended to use your own L.canvas()
@@ -146,7 +107,6 @@ Papa.parse('data/Flowmap_Cities_one_to_many.csv', {
             animationEasingType: 'In',
             animationDuration: 2000
         }).addTo(lmap);
-        layerControls.addOverlay(oneToManyFlowmapLayer, 'Flow Layer');
 
         // since this demo is using the optional "pathDisplayMode" as "selection",
         // it is up to the developer to wire up a click or mouseover listener
@@ -160,19 +120,48 @@ Papa.parse('data/Flowmap_Cities_one_to_many.csv', {
                 oneToManyFlowmapLayer.selectFeaturesForPathDisplay(e.sharedDestinationFeatures, 'SELECTION_NEW');
             }
         });
-
         oneToManyFlowmapLayer.on('mouseout', function (e) {
             oneToManyFlowmapLayer.clearAllPathSelections();
         });
+        layerControls.addOverlay(oneToManyFlowmapLayer, 'Flow Layer');
 
-        // immediately select an origin point for Bezier path display,
-        // instead of waiting for the first user click event to fire
-        // oneToManyFlowmapLayer.selectFeaturesForPathDisplayById('s_city_id', 562, true, 'SELECTION_NEW');
     }
 });
 
 
-// geometry properties and select geometry
+// geometry layer
+
+// edit map
+let JSONLayer = new L.GeoJSON([], {
+    pointToLayer: function (feature, latlng) {
+        return L.circleMarker(latlng);
+    }
+}).addTo(lmap);
+layerControls.addOverlay(JSONLayer, 'Geometries');
+
+let drawControl = new L.Control.Draw({
+    position: 'topright',
+    edit: {
+        featureGroup: JSONLayer,
+        selectedPathOptions: {
+            maintainColor: true,
+            moveMarkers: true
+        }
+    },
+    draw: {
+        marker: false,
+        circle: false,
+    },
+});
+lmap.addControl(drawControl);
+
+lmap.on(L.Draw.Event.CREATED, function (event) {
+    let layer = event.layer;
+    //console.log(layer);
+    JSONLayer.addLayer(layer);
+});
+
+
 function layerToTable(layer) {
     let content = '<table class="table table-bordered table-striped view-geometry-property-table"><tbody>';
 
