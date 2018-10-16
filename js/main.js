@@ -7,21 +7,20 @@ const popupOption = {
 };
 
 const featureStyle = {
-  color:'red',
+    color: 'red',
 };
 
 const highlightStye = {
- color: '#3388ff',
+    color: '#3388ff',
 };
 
 // init map
-let lmap = L.map('lmap',{
+let lmap = L.map('lmap', {
     preferCanvas: true,
 }).setView([39, 116], 5);
 lmap.zoomControl.setPosition('topright');
 
 let traLayer = new L.FeatureGroup();
-let flowLayer = new L.GeoJSON();
 let JSONLayer = new L.GeoJSON([], {
     pointToLayer: function (feature, latlng) {
         return L.circleMarker(latlng);
@@ -29,13 +28,11 @@ let JSONLayer = new L.GeoJSON([], {
 });
 
 lmap.addLayer(traLayer);
-lmap.addLayer(flowLayer);
 lmap.addLayer(JSONLayer);
 
 
 let overlayLayers = {
     'Trajectories': traLayer,
-    'Flow Layer': flowLayer,
     'Geometries': JSONLayer,
 };
 
@@ -48,12 +45,11 @@ let baseLayers = {
     'Dark Matter': L.tileLayer.provider('CartoDB.DarkMatter'),
 };
 baseLayers.Street.addTo(lmap);
-L.control.layers(baseLayers, overlayLayers).setPosition('bottomright').addTo(lmap);
+let layerControls = L.control.layers(baseLayers, overlayLayers).setPosition('bottomright').addTo(lmap);
 
 // trajectory layer
-
-let myMovingMarker = L.Marker.movingMarker([[39, 116],[22, 113]],
-    [20000],{
+let myMovingMarker = L.Marker.movingMarker([[39, 116], [22, 113]],
+    [20000], {
         autostart: true,
         loop: true,
     });
@@ -71,7 +67,7 @@ let drawControl = new L.Control.Draw({
         }
     },
     draw: {
-        marker:false,
+        marker: false,
         circle: false,
     },
 });
@@ -83,12 +79,105 @@ lmap.on(L.Draw.Event.CREATED, function (event) {
     JSONLayer.addLayer(layer);
 });
 
+// flow layer
+let canvasRenderer = L.canvas();
+Papa.parse('data/Flowmap_Cities_one_to_many.csv', {
+    download: true,
+    header: true,
+    dynamicTyping: true,
+    skipEmptyLines: true,
+    complete: function (results) {
+        var geoJsonFeatureCollection = {
+            type: 'FeatureCollection',
+            features: results.data.map(function (datum) {
+                return {
+                    type: 'Feature',
+                    geometry: {
+                        type: 'Point',
+                        coordinates: [datum.s_lon, datum.s_lat]
+                    },
+                    properties: datum
+                }
+            })
+        };
+        var oneToManyFlowmapLayer = L.canvasFlowmapLayer(geoJsonFeatureCollection, {
+            originAndDestinationFieldIds: {
+                originUniqueIdField: 's_city_id',
+                originGeometry: {
+                    x: 's_lon',
+                    y: 's_lat'
+                },
+                destinationUniqueIdField: 'e_city_id',
+                destinationGeometry: {
+                    x: 'e_lon',
+                    y: 'e_lat'
+                }
+            },
+            style: function (geoJsonFeature) {
+                // use leaflet's path styling options
+
+                // since the GeoJSON feature properties are modified by the layer,
+                // developers can rely on the "isOrigin" property to set different
+                // symbols for origin vs destination CircleMarker stylings
+
+                if (geoJsonFeature.properties.isOrigin) {
+                    return {
+                        renderer: canvasRenderer, // recommended to use your own L.canvas()
+                        radius: 10,
+                        weight: 1,
+                        color: 'rgb(195, 255, 62)',
+                        fillColor: 'rgba(195, 255, 62, 0.6)',
+                        fillOpacity: 0.6
+                    };
+                } else {
+                    return {
+                        renderer: canvasRenderer,
+                        radius: 5,
+                        weight: 0.25,
+                        color: 'rgb(17, 142, 170)',
+                        fillColor: 'rgb(17, 142, 170)',
+                        fillOpacity: 0.7
+                    };
+                }
+            },
+            pathDisplayMode: 'selection',
+            animationStarted: true,
+            animationEasingFamily: 'Cubic',
+            animationEasingType: 'In',
+            animationDuration: 2000
+        }).addTo(lmap);
+        layerControls.addOverlay(oneToManyFlowmapLayer, 'Flow Layer');
+
+        // since this demo is using the optional "pathDisplayMode" as "selection",
+        // it is up to the developer to wire up a click or mouseover listener
+        // and then call the "selectFeaturesForPathDisplay()" method to inform the layer
+        // which Bezier paths need to be drawn
+        oneToManyFlowmapLayer.on('mouseover', function (e) {
+            if (e.sharedOriginFeatures.length) {
+                oneToManyFlowmapLayer.selectFeaturesForPathDisplay(e.sharedOriginFeatures, 'SELECTION_NEW');
+            }
+            if (e.sharedDestinationFeatures.length) {
+                oneToManyFlowmapLayer.selectFeaturesForPathDisplay(e.sharedDestinationFeatures, 'SELECTION_NEW');
+            }
+        });
+
+        oneToManyFlowmapLayer.on('mouseout', function (e) {
+            oneToManyFlowmapLayer.clearAllPathSelections();
+        });
+
+        // immediately select an origin point for Bezier path display,
+        // instead of waiting for the first user click event to fire
+        // oneToManyFlowmapLayer.selectFeaturesForPathDisplayById('s_city_id', 562, true, 'SELECTION_NEW');
+    }
+});
+
+
 // geometry properties and select geometry
 function layerToTable(layer) {
     let content = '<table class="table table-bordered table-striped view-geometry-property-table"><tbody>';
 
-    if(layer && layer.properties){
-        for (let key in layer.properties){
+    if (layer && layer.properties) {
+        for (let key in layer.properties) {
             content += '<tr><th>' + key + '</th>';
             content += '<td>' + layer.properties[key] + '</td></tr>';
         }
