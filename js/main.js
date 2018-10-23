@@ -33,7 +33,7 @@ let layerControls = L.control.layers(baseLayers).setPosition('bottomright').addT
 
 // trajectory layer
 let traLayer = new L.FeatureGroup();
-layerControls.addOverlay(traLayer, 'Trajectories');
+layerControls.addOverlay(traLayer, 'Trajectory');
 
 let myMovingMarker = L.Marker.movingMarker([[39, 116], [22, 113]],
     [20000], {
@@ -123,7 +123,7 @@ Papa.parse('data/Flowmap_Cities_one_to_many.csv', {
         oneToManyFlowmapLayer.on('mouseout', function (e) {
             oneToManyFlowmapLayer.clearAllPathSelections();
         });
-        layerControls.addOverlay(oneToManyFlowmapLayer, 'Flow Layer');
+        layerControls.addOverlay(oneToManyFlowmapLayer, 'Network');
 
     }
 });
@@ -137,7 +137,7 @@ let JSONLayer = new L.GeoJSON([], {
         return L.circleMarker(latlng);
     }
 }).addTo(lmap);
-layerControls.addOverlay(JSONLayer, 'Geometries');
+layerControls.addOverlay(JSONLayer, 'Geometry');
 
 let drawControl = new L.Control.Draw({
     position: 'topright',
@@ -150,6 +150,7 @@ let drawControl = new L.Control.Draw({
     },
     draw: {
         marker: false,
+        circlemarker: true,
         circle: false,
     },
 });
@@ -158,7 +159,7 @@ lmap.addControl(drawControl);
 lmap.on(L.Draw.Event.CREATED, function (event) {
     let layer = event.layer;
     //console.log(layer);
-    JSONLayer.addLayer(layer);
+    JSONLayer.addData(layer.toGeoJSON());
 });
 
 
