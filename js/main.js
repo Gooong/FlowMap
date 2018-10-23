@@ -7,11 +7,11 @@ const popupOption = {
 };
 
 const featureStyle = {
-    color: 'red',
+    color: '#3388ff',
 };
 
 const highlightStye = {
-    color: '#3388ff',
+    color: 'red',
 };
 
 // init map
@@ -34,103 +34,128 @@ let layerControls = L.control.layers(baseLayers).setPosition('bottomright').addT
 // trajectory layer
 let traLayer = new L.FeatureGroup();
 layerControls.addOverlay(traLayer, 'Trajectory');
+lmap.addLayer(traLayer);
 
-let myMovingMarker = L.Marker.movingMarker([[39, 116], [22, 113]],
-    [20000], {
-        autostart: true,
-        loop: true,
+function moving(marker){
+    marker.start();
+    marker.bindPopup('Click me to pause!').openPopup();
+    marker.on('click',function(e){
+            console.log(e);
+            if(marker.isPaused()==true)
+            {
+                marker.start();
+                marker.bindPopup('Click me to pause!').openPopup();
+            }
+            else{
+                marker.pause();
+                marker.bindPopup('Click me to start!').openPopup();
+            }
+
+        }
+    )
+}
+
+// let myMovingMarker = L.Marker.movingMarker([[39, 116], [22, 113]],
+//     [20000], {
+//         autostart: true,
+//         loop: true,
+//     });
+// traLayer.addLayer(myMovingMarker);
+
+
+// network layer
+const canvas = L.canvas();
+const originCityStyle = {
+    renderer: canvas, // recommended to use your own L.canvas()
+    radius: 6,
+    weight: 1,
+    color: 'rgb(195, 255, 62)',
+    fillColor: 'rgba(195, 255, 62, 0.6)',
+    fillOpacity: 0.6
+};
+
+const destinationCityStyle = {
+    renderer: canvas,
+    radius: 3,
+    weight: 0.25,
+    color: 'rgb(17, 142, 170)',
+    fillColor: 'rgb(17, 142, 170)',
+    fillOpacity: 0.7
+};
+
+const networkLayerOption = {
+    originAndDestinationFieldIds: {
+        originUniqueIdField: 's_city_id',
+        originGeometry: {
+            x: 's_lon',
+            y: 's_lat'
+        },
+        destinationUniqueIdField: 'e_city_id',
+        destinationGeometry: {
+            x: 'e_lon',
+            y: 'e_lat'
+        }
+    },
+    style: geoJsonFeature => geoJsonFeature.properties.isOrigin ? originCityStyle : destinationCityStyle,
+    pathDisplayMode: 'select',
+    animationStarted: true,
+    animationEasingFamily: 'Linear',
+    animationEasingType: 'None',
+    animationDuration: 2000
+};
+
+let networkLayer = L.geoJSON();
+lmap.addLayer(networkLayer);
+layerControls.addOverlay(networkLayer, 'Network');
+
+function buildNetworkLayer(geoJsonFeatureCollection) {
+    lmap.removeLayer(networkLayer);
+    layerControls.removeLayer(networkLayer);
+
+    networkLayer = L.canvasFlowmapLayer(geoJsonFeatureCollection, networkLayerOption);
+    lmap.addLayer(networkLayer);
+    layerControls.addOverlay(networkLayer, 'Network');
+
+    networkLayer.on('mouseover', function (e) {
+        if (e.sharedOriginFeatures.length) {
+            networkLayer.selectFeaturesForPathDisplay(e.sharedOriginFeatures, 'SELECTION_NEW');
+        }
+        if (e.sharedDestinationFeatures.length) {
+            networkLayer.selectFeaturesForPathDisplay(e.sharedDestinationFeatures, 'SELECTION_NEW');
+        }
     });
-traLayer.addLayer(myMovingMarker);
+    networkLayer.on('mouseout', function (e) {
+        networkLayer.clearAllPathSelections();
+    });
+    return networkLayer;
+}
 
-
-// flow layer
-let canvasRenderer = L.canvas();
-Papa.parse('data/Flowmap_Cities_one_to_many.csv', {
-    download: true,
-    header: true,
-    dynamicTyping: true,
-    skipEmptyLines: true,
-    complete: function (results) {
-        var geoJsonFeatureCollection = {
-            type: 'FeatureCollection',
-            features: results.data.map(function (datum) {
-                return {
-                    type: 'Feature',
-                    geometry: {
-                        type: 'Point',
-                        coordinates: [datum.s_lon, datum.s_lat]
-                    },
-                    properties: datum
-                }
-            })
-        };
-        var oneToManyFlowmapLayer = L.canvasFlowmapLayer(geoJsonFeatureCollection, {
-            originAndDestinationFieldIds: {
-                originUniqueIdField: 's_city_id',
-                originGeometry: {
-                    x: 's_lon',
-                    y: 's_lat'
-                },
-                destinationUniqueIdField: 'e_city_id',
-                destinationGeometry: {
-                    x: 'e_lon',
-                    y: 'e_lat'
-                }
-            },
-            style: function (geoJsonFeature) {
-                // since the GeoJSON feature properties are modified by the layer,
-                // developers can rely on the "isOrigin" property to set different
-                // symbols for origin vs destination CircleMarker stylings
-                if (geoJsonFeature.properties.isOrigin) {
+function addNetwork(csvstring) {
+    Papa.parse(csvstring, {
+        header: true,
+        dynamicTyping: true,
+        skipEmptyLines: true,
+        complete: function (results) {
+            let geoJsonFeatureCollection = {
+                type: 'FeatureCollection',
+                features: results.data.map(function (datum) {
                     return {
-                        renderer: canvasRenderer, // recommended to use your own L.canvas()
-                        radius: 10,
-                        weight: 1,
-                        color: 'rgb(195, 255, 62)',
-                        fillColor: 'rgba(195, 255, 62, 0.6)',
-                        fillOpacity: 0.6
-                    };
-                } else {
-                    return {
-                        renderer: canvasRenderer,
-                        radius: 5,
-                        weight: 0.25,
-                        color: 'rgb(17, 142, 170)',
-                        fillColor: 'rgb(17, 142, 170)',
-                        fillOpacity: 0.7
-                    };
-                }
-            },
-            pathDisplayMode: 'selection',
-            animationStarted: true,
-            animationEasingFamily: 'Cubic',
-            animationEasingType: 'In',
-            animationDuration: 2000
-        }).addTo(lmap);
-
-        // since this demo is using the optional "pathDisplayMode" as "selection",
-        // it is up to the developer to wire up a click or mouseover listener
-        // and then call the "selectFeaturesForPathDisplay()" method to inform the layer
-        // which Bezier paths need to be drawn
-        oneToManyFlowmapLayer.on('mouseover', function (e) {
-            if (e.sharedOriginFeatures.length) {
-                oneToManyFlowmapLayer.selectFeaturesForPathDisplay(e.sharedOriginFeatures, 'SELECTION_NEW');
-            }
-            if (e.sharedDestinationFeatures.length) {
-                oneToManyFlowmapLayer.selectFeaturesForPathDisplay(e.sharedDestinationFeatures, 'SELECTION_NEW');
-            }
-        });
-        oneToManyFlowmapLayer.on('mouseout', function (e) {
-            oneToManyFlowmapLayer.clearAllPathSelections();
-        });
-        layerControls.addOverlay(oneToManyFlowmapLayer, 'Network');
-
-    }
-});
+                        type: 'Feature',
+                        geometry: {
+                            type: 'Point',
+                            coordinates: [datum.s_lon, datum.s_lat]
+                        },
+                        properties: datum
+                    }
+                })
+            };
+            buildNetworkLayer(geoJsonFeatureCollection);
+        }
+    });
+}
 
 
 // geometry layer
-
 // edit map
 let JSONLayer = new L.GeoJSON([], {
     pointToLayer: function (feature, latlng) {
@@ -182,10 +207,10 @@ JSONLayer.on('layeradd', function (e) {
         return layerToTable(target.feature);
     }, popupOption);
     layer.on('popupopen', function () {
-        layer.setStyle(featureStyle);
+        layer.setStyle(highlightStye);
     });
     layer.on('popupclose', function () {
-        layer.setStyle(highlightStye);
+        layer.setStyle(featureStyle);
     })
 });
 
@@ -197,22 +222,58 @@ $('#open-file').click(function () {
 
 fileBtn.addEventListener('change', function () {
     if (fileBtn.files && fileBtn.files[0]) {
-        var selectedFile = fileBtn.files[0];
-        var reader = new FileReader();
+        let selectedFile = fileBtn.files[0];
+        let reader = new FileReader();
 
         if (selectedFile.name.endsWith('zip')) {
             reader.readAsArrayBuffer(selectedFile);
             reader.onload = function (e) {
                 shp(e.target.result).then(function (geojson) {
                     JSONLayer.addData(geojson);
+                    if (JSONLayer.getBounds().isValid()) {
+                        lmap.fitBounds(JSONLayer.getBounds());
+                    }
                 })
+            }
+        }
+        else if (selectedFile.name.endsWith('csv')) {
+            reader.readAsText(selectedFile);
+            reader.onload = function (e) {
+                addNetwork(e.target.result);
+            }
+        }
+        else if (selectedFile.name.endsWith('txt')) {
+            reader.readAsText(selectedFile);
+            reader.onload = function (e) {
+                var obj = JSON.parse(e.target.result);
+                var latlngs = [];
+                for (var i = 0; i < obj.length; i++) {
+                    latlngs[i] = [];
+                    for (var j = 0; j < 2; j++) {
+                        latlngs[i][j] = 1;
+                    }
+                }
+                for (var i = 0; i < obj.length; i++) {
+                    latlngs[i][0] = obj[i].lat;
+                    latlngs[i][1] = obj[i].lng;
+                }
+
+                var marker = new L.Marker.MovingMarker(latlngs, [50000,4000,5656,3232]);
+                traLayer.addLayer(marker);
+
+                let p = new L.polyline(latlngs, {color: 'red', weight: 3});
+                JSONLayer.addLayer(p);
+                moving(marker);
             }
         }
         else {
             reader.readAsText(selectedFile);
             reader.onload = function (e) {
                 var json = JSON.parse(e.target.result);
-                JSONLayer.addData(json)
+                JSONLayer.addData(json);
+                if (JSONLayer.getBounds().isValid()) {
+                    lmap.fitBounds(JSONLayer.getBounds());
+                }
             };
         }
 
