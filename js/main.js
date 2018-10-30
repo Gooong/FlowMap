@@ -36,21 +36,35 @@ let traLayer = new L.FeatureGroup();
 layerControls.addOverlay(traLayer, 'Trajectory');
 lmap.addLayer(traLayer);
 
-function moving(marker){
+// create trajectory if the layer is instance of Polyline and contains 'timestamp' property
+function filterTra(layer) {
+    let geojson = layer.toGeoJSON();
+    //console.log(geojson);
+    if (geojson['properties']['timestamp']) {
+        if (geojson['geometry']['type'] === 'LineString') {
+            let coors = geojson['geometry']['coordinates'];
+            let latlngs = coors.map(L.GeoJSON.coordsToLatLng)
+            let timestamp = geojson['properties']['timestamp'];
+            let movingMarker = L.Marker.movingMarker(latlngs, timestamp, {loop: true});
+            moving(movingMarker);
+            traLayer.addLayer(movingMarker)
+        }
+    }
+
+}
+
+function moving(marker) {
     marker.start();
     marker.bindPopup('Click me to pause!').openPopup();
-    marker.on('click',function(e){
-            console.log(e);
-            if(marker.isPaused()==true)
-            {
+    marker.on('click', function (e) {
+            if (marker.isPaused()) {
                 marker.start();
                 marker.bindPopup('Click me to pause!').openPopup();
             }
-            else{
+            else {
                 marker.pause();
                 marker.bindPopup('Click me to start!').openPopup();
             }
-
         }
     )
 }
@@ -116,16 +130,25 @@ function buildNetworkLayer(geoJsonFeatureCollection) {
     lmap.addLayer(networkLayer);
     layerControls.addOverlay(networkLayer, 'Network');
 
+    let infoPopup = L.popup(popupOption);
     networkLayer.on('mouseover', function (e) {
-        if (e.sharedOriginFeatures.length) {
+        console.log(e);
+        let outDegree = e.sharedOriginFeatures.length;
+        let inDegree = e.sharedDestinationFeatures.length;
+        if (outDegree) {
             networkLayer.selectFeaturesForPathDisplay(e.sharedOriginFeatures, 'SELECTION_NEW');
         }
-        if (e.sharedDestinationFeatures.length) {
+        if (inDegree) {
             networkLayer.selectFeaturesForPathDisplay(e.sharedDestinationFeatures, 'SELECTION_NEW');
         }
+        infoPopup.setLatLng(e.latlng).setContent(propertiesToTable({
+            'In Degree': inDegree,
+            'Out Degree': outDegree,
+        })).openOn(lmap);
     });
     networkLayer.on('mouseout', function (e) {
         networkLayer.clearAllPathSelections();
+        infoPopup.remove();
     });
     return networkLayer;
 }
@@ -187,15 +210,11 @@ lmap.on(L.Draw.Event.CREATED, function (event) {
     JSONLayer.addData(layer.toGeoJSON());
 });
 
-
-function layerToTable(layer) {
+function propertiesToTable(properties) {
     let content = '<table class="table table-bordered table-striped view-geometry-property-table"><tbody>';
-
-    if (layer && layer.properties) {
-        for (let key in layer.properties) {
-            content += '<tr><th>' + key + '</th>';
-            content += '<td>' + layer.properties[key] + '</td></tr>';
-        }
+    for (let skey in properties) {
+        content += '<tr><th>' + skey + '</th>';
+        content += '<td>' + properties[skey] + '</td></tr>';
     }
     content += '</tbody></table>';
     return content;
@@ -204,7 +223,12 @@ function layerToTable(layer) {
 JSONLayer.on('layeradd', function (e) {
     let layer = e.layer;
     layer.bindPopup(function (target) {
-        return layerToTable(target.feature);
+        if (target.feature && target.feature.properties) {
+            return propertiesToTable(target.feature.properties);
+        } else {
+            return 'No property';
+        }
+
     }, popupOption);
     layer.on('popupopen', function () {
         layer.setStyle(highlightStye);
@@ -212,73 +236,126 @@ JSONLayer.on('layeradd', function (e) {
     layer.on('popupclose', function () {
         layer.setStyle(featureStyle);
     })
+
+    filterTra(layer);
 });
 
 // import and export
+
+// import from url
+let urlInput = $('#url-address')[0]
+$('#btn-import-from-url').click(function () {
+    let url = urlInput.value;
+    $.get(url)
+        .done(function (data) {
+            if (url.endsWith('json')) {
+                JSONLayer.addData(data);
+                if (JSONLayer.getBounds().isValid()) {
+                    lmap.fitBounds(JSONLayer.getBounds());
+                }
+            }
+        })
+        .fail(function () {
+            alert('Import Fail');
+        });
+});
+
+// import from file
 var fileBtn = $("#open-file-dialog")[0];
-$('#open-file').click(function () {
+$('#open-geometry-file').click(function () {
     fileBtn.click();
 });
+$('#open-network-file').click(function () {
+    fileBtn.click();
+});
+
+function importFile(selectedFile) {
+    let reader = new FileReader();
+
+    if (selectedFile.name.endsWith('json')) {
+        reader.readAsText(selectedFile);
+        reader.onload = function (e) {
+            var json = JSON.parse(e.target.result);
+            JSONLayer.addData(json);
+            if (JSONLayer.getBounds().isValid()) {
+                lmap.fitBounds(JSONLayer.getBounds());
+            }
+        };
+    }
+    else if (selectedFile.name.endsWith('zip')) {
+        reader.readAsArrayBuffer(selectedFile);
+        reader.onload = function (e) {
+            shp(e.target.result).then(function (geojson) {
+                JSONLayer.addData(geojson);
+                if (JSONLayer.getBounds().isValid()) {
+                    lmap.fitBounds(JSONLayer.getBounds());
+                }
+            })
+        }
+    }
+    else if (selectedFile.name.endsWith('csv')) {
+        reader.readAsText(selectedFile);
+        reader.onload = function (e) {
+            addNetwork(e.target.result);
+        }
+    }
+    else if (selectedFile.name.endsWith('txt')) {
+        reader.readAsText(selectedFile);
+        reader.onload = function (e) {
+            var obj = JSON.parse(e.target.result);
+            var latlngs = [];
+            for (var i = 0; i < obj.length; i++) {
+                latlngs[i] = [];
+                for (var j = 0; j < 2; j++) {
+                    latlngs[i][j] = 1;
+                }
+            }
+            for (var i = 0; i < obj.length; i++) {
+                latlngs[i][0] = obj[i].lat;
+                latlngs[i][1] = obj[i].lng;
+            }
+
+            var marker = new L.Marker.MovingMarker(latlngs, [50000, 4000, 5656, 3232]);
+            traLayer.addLayer(marker);
+
+            let p = new L.polyline(latlngs, {color: 'red', weight: 3});
+            JSONLayer.addLayer(p);
+            moving(marker);
+        }
+    }
+}
 
 fileBtn.addEventListener('change', function () {
     if (fileBtn.files && fileBtn.files[0]) {
         let selectedFile = fileBtn.files[0];
-        let reader = new FileReader();
-
-        if (selectedFile.name.endsWith('zip')) {
-            reader.readAsArrayBuffer(selectedFile);
-            reader.onload = function (e) {
-                shp(e.target.result).then(function (geojson) {
-                    JSONLayer.addData(geojson);
-                    if (JSONLayer.getBounds().isValid()) {
-                        lmap.fitBounds(JSONLayer.getBounds());
-                    }
-                })
-            }
-        }
-        else if (selectedFile.name.endsWith('csv')) {
-            reader.readAsText(selectedFile);
-            reader.onload = function (e) {
-                addNetwork(e.target.result);
-            }
-        }
-        else if (selectedFile.name.endsWith('txt')) {
-            reader.readAsText(selectedFile);
-            reader.onload = function (e) {
-                var obj = JSON.parse(e.target.result);
-                var latlngs = [];
-                for (var i = 0; i < obj.length; i++) {
-                    latlngs[i] = [];
-                    for (var j = 0; j < 2; j++) {
-                        latlngs[i][j] = 1;
-                    }
-                }
-                for (var i = 0; i < obj.length; i++) {
-                    latlngs[i][0] = obj[i].lat;
-                    latlngs[i][1] = obj[i].lng;
-                }
-
-                var marker = new L.Marker.MovingMarker(latlngs, [50000,4000,5656,3232]);
-                traLayer.addLayer(marker);
-
-                let p = new L.polyline(latlngs, {color: 'red', weight: 3});
-                JSONLayer.addLayer(p);
-                moving(marker);
-            }
-        }
-        else {
-            reader.readAsText(selectedFile);
-            reader.onload = function (e) {
-                var json = JSON.parse(e.target.result);
-                JSONLayer.addData(json);
-                if (JSONLayer.getBounds().isValid()) {
-                    lmap.fitBounds(JSONLayer.getBounds());
-                }
-            };
-        }
-
+        importFile(selectedFile)
     }
 });
+
+
+// drag file
+$('#lmap').on("dragover", function (event) {
+    event.preventDefault();
+    event.stopPropagation();
+    $(this).addClass('dragging');
+});
+
+$('#lmap').on("dragleave", function (event) {
+    event.preventDefault();
+    event.stopPropagation();
+    $(this).removeClass('dragging');
+});
+
+$('#lmap').on("drop", function (ev) {
+    ev.preventDefault();
+    ev.stopPropagation();
+    if (ev.originalEvent.dataTransfer && ev.originalEvent.dataTransfer.files.length) {
+        ev.preventDefault();
+        ev.stopPropagation();
+        importFile(ev.originalEvent.dataTransfer.files[0]);
+    }
+});
+
 
 var btnSaveGeoJSON = $("#btn-save-geojson");
 btnSaveGeoJSON.click(function () {
@@ -291,6 +368,34 @@ btnSaveShp.click(function () {
     var data = JSONLayer.toGeoJSON();
     saveShp(data);
 });
+//
+// var btnSaveImage = $("#btn-save-image");
+// btnSaveImage.click(function () {
+//     leafletImage(lmap, function (err, canvas) {
+//         /// create an "off-screen" anchor tag
+//         var lnk = document.createElement('a');
+//
+//         /// the key here is to set the download attribute of the a tag
+//         lnk.download = 'flowMap';
+//
+//         /// convert canvas content to data-uri for link. When download
+//         /// attribute is set the content pointed to by link will be
+//         /// pushed as "download" in HTML5 capable browsers
+//         lnk.href = canvas.toDataURL("image/png;base64");
+//
+//         /// create a "fake" click-event to trigger the download
+//         if (document.createEvent) {
+//             e = document.createEvent("MouseEvents");
+//             e.initMouseEvent("click", true, true, window,
+//                 0, 0, 0, 0, 0, false, false, false,
+//                 false, 0, null);
+//
+//             lnk.dispatchEvent(e);
+//         } else if (lnk.fireEvent) {
+//             lnk.fireEvent("onclick");
+//         }
+//     });
+// });
 
 function saveGeoJSON(data) {
     function saveToFile(content, filename) {

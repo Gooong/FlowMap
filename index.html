@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <title>Flow Map</title>
     <link rel="shortcut Icon" href="image/logo.png">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 
     <link rel="stylesheet" href="css/leaflet.css">
     <link rel="stylesheet" href="css/bootstrap.css">
@@ -26,10 +26,34 @@
     <script src="js/CanvasFlowmapLayer.js"></script>
     <script src="js/papaparse.js"></script>
     <script src="js/Tween.min.js"></script>
+    <!--<script src="js/leaflet-image.js"></script>-->
 
 
 </head>
 <body>
+
+<!-- Modal -->
+<div class="modal fade" id="input-url" tabindex="-1" role="dialog" aria-labelledby="exampleModalLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="exampleModalLabel">Input GeoJSON from URL</h5>
+            </div>
+            <div class="modal-body">
+                <form>
+                    <div class="form-group">
+                        <label for="url-address" class="col-form-label">URL address:</label>
+                        <input type="text" class="form-control" id="url-address" value="data/example/sheng.json">
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary" id="btn-import-from-url" data-dismiss="modal">Import</button>
+            </div>
+        </div>
+    </div>
+</div>
 
 <ul class="nav" id="nav-menu">
     <li class="nav-item">
@@ -43,8 +67,9 @@
            aria-expanded="false">Import</a>
         <div class="dropdown-menu">
             <input type="file" multiple id="open-file-dialog" style="display: none"/>
-            <a class="dropdown-item" href="#" id="open-file">File</a>
-            <a class="dropdown-item" href="#">URL</a>
+            <a class="dropdown-item" href="#" id="open-geometry-file" title="Support Shapefile and GeoJSON">Geometry File</a>
+            <a class="dropdown-item" href="#" id="open-network-file">Network File</a>
+            <a class="dropdown-item" href="#" id="import-from-url" data-toggle="modal" data-target="#input-url">GeoJSON From URL</a>
         </div>
     </li>
 
@@ -54,6 +79,7 @@
         <div class="dropdown-menu">
             <a class="dropdown-item" id="btn-save-geojson" href="#">GeoJSON</a>
             <a class="dropdown-item" id="btn-save-shp" href="#">Shapefile</a>
+            <!--<a class="dropdown-item" id="btn-save-image" href="#">Image</a>-->
         </div>
     </li>
 
