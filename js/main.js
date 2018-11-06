@@ -47,6 +47,8 @@ function filterTra(layer) {
                 let d = new Date(date);
                 return d.getTime();
             });
+            geojson['properties']['start_time'] = dates[0];
+            geojson['properties']['end_time'] = dates[dates.length - 1];
             geojson['properties']['time_stamps'] = timestamps;
         }
 
@@ -59,7 +61,7 @@ function filterTra(layer) {
             }
             let sum = intervals.reduce((a, b) => a + b, 0);
             intervals = intervals.map(function (interval) {
-                return interval*10000/sum;
+                return interval * 100000 / sum;
             });
 
             let coors = geojson['geometry']['coordinates'];
@@ -140,6 +142,8 @@ let networkLayer = L.geoJSON();
 lmap.addLayer(networkLayer);
 layerControls.addOverlay(networkLayer, 'Network');
 
+let newworkInfo = {};
+
 function buildNetworkLayer(geoJsonFeatureCollection) {
     lmap.removeLayer(networkLayer);
     layerControls.removeLayer(networkLayer);
@@ -149,25 +153,47 @@ function buildNetworkLayer(geoJsonFeatureCollection) {
     layerControls.addOverlay(networkLayer, 'Network');
 
     let infoPopup = L.popup(popupOption);
-    networkLayer.on('mouseover', function (e) {
-        console.log(e);
+    networkLayer.on('click', function (e) {
+        networkLayer.clearAllPathSelections();
+        infoPopup.remove();
+
+        //console.log(e);
         let outDegree = e.sharedOriginFeatures.length;
         let inDegree = e.sharedDestinationFeatures.length;
+
+        let ecity = null;
         if (outDegree) {
             networkLayer.selectFeaturesForPathDisplay(e.sharedOriginFeatures, 'SELECTION_NEW');
+            ecity = e.sharedOriginFeatures[0].properties['s_city'];
         }
         if (inDegree) {
             networkLayer.selectFeaturesForPathDisplay(e.sharedDestinationFeatures, 'SELECTION_NEW');
+            ecity = e.sharedDestinationFeatures[0].properties['s_city'];
         }
+
+        // betweennessCentrality
+
+        let btw_of_e = newworkInfo["btw"]._stringValues[ecity];
+        // eigenvectorCentrality
+        // let eig_of_e = tmp["eig"]._stringValues[ecity];
+        // clustering
+        let clu_of_e = newworkInfo["clu"]._stringValues[ecity];
+        // transitivity of flows
+        // let tra_of_e = tmp["tra"]._stringValues[ecity];
+
         infoPopup.setLatLng(e.latlng).setContent(propertiesToTable({
             'In Degree': inDegree,
             'Out Degree': outDegree,
+            'Betweenness Centrality': btw_of_e,
+            // 'Eigenvector Centrality': eig_of_e,
+            'Clustering coefficient': clu_of_e,
+            // 'Transitivity': tra_of_e,
         })).openOn(lmap);
     });
-    networkLayer.on('mouseout', function (e) {
-        networkLayer.clearAllPathSelections();
-        infoPopup.remove();
-    });
+    // networkLayer.on('mouseout', function (e) {
+    //     networkLayer.clearAllPathSelections();
+    //     infoPopup.remove();
+    // });
     return networkLayer;
 }
 
@@ -191,6 +217,21 @@ function addNetwork(csvstring) {
                 })
             };
             buildNetworkLayer(geoJsonFeatureCollection);
+
+            let G = new jsnx.Graph();
+            let edges = results.data.map(function (datam) {
+                return [datam.s_city, datam.e_City]
+            });
+            // graph creating
+            G.addEdgesFrom(edges);
+            let btw = jsnx.betweennessCentrality(G);
+            // let eig = jsnx.eigenvectorCentrality(G);
+            let clu = jsnx.clustering(G);
+            // let tra = jsnx.transitivity(G);
+            newworkInfo["btw"] = btw;
+            // tmp["eig"] = eig;
+            newworkInfo["clu"] = clu;
+            // tmp["tra"] = tra;
         }
     });
 }
@@ -231,8 +272,8 @@ lmap.on(L.Draw.Event.CREATED, function (event) {
 function propertiesToTable(properties) {
     let content = '<table class="table table-bordered table-striped view-geometry-property-table"><tbody>';
     for (let skey in properties) {
-        content += '<tr><th>' + skey + '</th>';
-        content += '<td>' + properties[skey] + '</td></tr>';
+        content += '<tr><th title="' + skey + '">' + skey + '</th>';
+        content += '<td title="' + properties[skey] + '">' + properties[skey] + '</td></tr>';
     }
     content += '</tbody></table>';
     return content;
@@ -323,7 +364,7 @@ function importFile(selectedFile) {
             let data = e.target.result;
             let gpx = $.parseXML(data);
             let geojson = toGeoJSON.gpx(gpx);
-            console.log(geojson);
+            //console.log(geojson);
             JSONLayer.addData(geojson);
             if (JSONLayer.getBounds().isValid()) {
                 lmap.fitBounds(JSONLayer.getBounds());
