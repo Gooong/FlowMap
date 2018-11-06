@@ -26,7 +26,8 @@
     <script src="js/CanvasFlowmapLayer.js"></script>
     <script src="js/papaparse.js"></script>
     <script src="js/Tween.min.js"></script>
-    <!--<script src="js/leaflet-image.js"></script>-->
+    <script src="js/leaflet-image.js"></script>
+    <script src="js/togeojson.js"></script>
 
 
 </head>
@@ -67,8 +68,8 @@
            aria-expanded="false">Import</a>
         <div class="dropdown-menu">
             <input type="file" multiple id="open-file-dialog" style="display: none"/>
-            <a class="dropdown-item" href="#" id="open-geometry-file" title="Support Shapefile and GeoJSON">Geometry File</a>
-            <a class="dropdown-item" href="#" id="open-network-file">Network File</a>
+            <a class="dropdown-item" href="#" id="open-geometry-file" title="Support Shapefile, GeoJSON and GPX format">Geometry File</a>
+            <a class="dropdown-item" href="#" id="open-network-file" title="Support CSV format">Network File</a>
             <a class="dropdown-item" href="#" id="import-from-url" data-toggle="modal" data-target="#input-url">GeoJSON From URL</a>
         </div>
     </li>
@@ -79,7 +80,7 @@
         <div class="dropdown-menu">
             <a class="dropdown-item" id="btn-save-geojson" href="#">GeoJSON</a>
             <a class="dropdown-item" id="btn-save-shp" href="#">Shapefile</a>
-            <!--<a class="dropdown-item" id="btn-save-image" href="#">Image</a>-->
+            <a class="dropdown-item" id="btn-save-image" href="#">Image</a>
         </div>
     </li>
 

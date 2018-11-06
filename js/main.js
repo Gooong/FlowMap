@@ -8,6 +8,7 @@ const popupOption = {
 
 const featureStyle = {
     color: '#3388ff',
+
 };
 
 const highlightStye = {
@@ -28,7 +29,7 @@ let baseLayers = {
     'Light Color': L.tileLayer.provider('CartoDB.Voyager'),
     'Dark Matter': L.tileLayer.provider('CartoDB.DarkMatter'),
 };
-baseLayers.Street.addTo(lmap);
+baseLayers['Street'].addTo(lmap);
 let layerControls = L.control.layers(baseLayers).setPosition('bottomright').addTo(lmap);
 
 // trajectory layer
@@ -39,18 +40,35 @@ lmap.addLayer(traLayer);
 // create trajectory if the layer is instance of Polyline and contains 'timestamp' property
 function filterTra(layer) {
     let geojson = layer.toGeoJSON();
-    //console.log(geojson);
-    if (geojson['properties']['timestamp']) {
-        if (geojson['geometry']['type'] === 'LineString') {
+    if (geojson['geometry']['type'] === 'LineString') {
+        if (geojson['properties']['coordTimes']) {
+            let dates = geojson['properties']['coordTimes'];
+            let timestamps = dates.map(function (date) {
+                let d = new Date(date);
+                return d.getTime();
+            });
+            geojson['properties']['time_stamps'] = timestamps;
+        }
+
+
+        if (geojson['properties']['time_stamps']) {
+            let timestamps = geojson['properties']['time_stamps'];
+            let intervals = []
+            for (let i = 1; i < timestamps.length; i++) {
+                intervals.push(timestamps[i] - timestamps[i - 1]);
+            }
+            let sum = intervals.reduce((a, b) => a + b, 0);
+            intervals = intervals.map(function (interval) {
+                return interval*10000/sum;
+            });
+
             let coors = geojson['geometry']['coordinates'];
-            let latlngs = coors.map(L.GeoJSON.coordsToLatLng)
-            let timestamp = geojson['properties']['timestamp'];
-            let movingMarker = L.Marker.movingMarker(latlngs, timestamp, {loop: true});
+            let latlngs = coors.map(L.GeoJSON.coordsToLatLng);
+            let movingMarker = L.Marker.movingMarker(latlngs, intervals, {loop: true});
             moving(movingMarker);
             traLayer.addLayer(movingMarker)
         }
     }
-
 }
 
 function moving(marker) {
@@ -299,28 +317,17 @@ function importFile(selectedFile) {
             addNetwork(e.target.result);
         }
     }
-    else if (selectedFile.name.endsWith('txt')) {
+    else if (selectedFile.name.endsWith('gpx')) {
         reader.readAsText(selectedFile);
         reader.onload = function (e) {
-            var obj = JSON.parse(e.target.result);
-            var latlngs = [];
-            for (var i = 0; i < obj.length; i++) {
-                latlngs[i] = [];
-                for (var j = 0; j < 2; j++) {
-                    latlngs[i][j] = 1;
-                }
+            let data = e.target.result;
+            let gpx = $.parseXML(data);
+            let geojson = toGeoJSON.gpx(gpx);
+            console.log(geojson);
+            JSONLayer.addData(geojson);
+            if (JSONLayer.getBounds().isValid()) {
+                lmap.fitBounds(JSONLayer.getBounds());
             }
-            for (var i = 0; i < obj.length; i++) {
-                latlngs[i][0] = obj[i].lat;
-                latlngs[i][1] = obj[i].lng;
-            }
-
-            var marker = new L.Marker.MovingMarker(latlngs, [50000, 4000, 5656, 3232]);
-            traLayer.addLayer(marker);
-
-            let p = new L.polyline(latlngs, {color: 'red', weight: 3});
-            JSONLayer.addLayer(p);
-            moving(marker);
         }
     }
 }
@@ -368,34 +375,34 @@ btnSaveShp.click(function () {
     var data = JSONLayer.toGeoJSON();
     saveShp(data);
 });
-//
-// var btnSaveImage = $("#btn-save-image");
-// btnSaveImage.click(function () {
-//     leafletImage(lmap, function (err, canvas) {
-//         /// create an "off-screen" anchor tag
-//         var lnk = document.createElement('a');
-//
-//         /// the key here is to set the download attribute of the a tag
-//         lnk.download = 'flowMap';
-//
-//         /// convert canvas content to data-uri for link. When download
-//         /// attribute is set the content pointed to by link will be
-//         /// pushed as "download" in HTML5 capable browsers
-//         lnk.href = canvas.toDataURL("image/png;base64");
-//
-//         /// create a "fake" click-event to trigger the download
-//         if (document.createEvent) {
-//             e = document.createEvent("MouseEvents");
-//             e.initMouseEvent("click", true, true, window,
-//                 0, 0, 0, 0, 0, false, false, false,
-//                 false, 0, null);
-//
-//             lnk.dispatchEvent(e);
-//         } else if (lnk.fireEvent) {
-//             lnk.fireEvent("onclick");
-//         }
-//     });
-// });
+
+var btnSaveImage = $("#btn-save-image");
+btnSaveImage.click(function () {
+    leafletImage(lmap, function (err, canvas) {
+        /// create an "off-screen" anchor tag
+        var lnk = document.createElement('a');
+
+        /// the key here is to set the download attribute of the a tag
+        lnk.download = 'flowMap';
+
+        /// convert canvas content to data-uri for link. When download
+        /// attribute is set the content pointed to by link will be
+        /// pushed as "download" in HTML5 capable browsers
+        lnk.href = canvas.toDataURL("image/png;base64");
+
+        /// create a "fake" click-event to trigger the download
+        if (document.createEvent) {
+            e = document.createEvent("MouseEvents");
+            e.initMouseEvent("click", true, true, window,
+                0, 0, 0, 0, 0, false, false, false,
+                false, 0, null);
+
+            lnk.dispatchEvent(e);
+        } else if (lnk.fireEvent) {
+            lnk.fireEvent("onclick");
+        }
+    });
+});
 
 function saveGeoJSON(data) {
     function saveToFile(content, filename) {
