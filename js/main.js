@@ -24,6 +24,13 @@ const traHighlightStyle = {
     color: 'red',
 };
 
+const toast = swal.mixin({
+    toast: true,
+    position: 'bottom-end',
+    showConfirmButton: false,
+    timer: 3000
+});
+
 // init map
 let lmap = L.map('lmap', {
     preferCanvas: true,
@@ -42,7 +49,7 @@ baseLayers['Street'].addTo(lmap);
 let layerControls = L.control.layers(baseLayers).setPosition('bottomright').addTo(lmap);
 
 // trajectory layer
-let traLayer = new L.GeoJSON([],{
+let traLayer = new L.GeoJSON([], {
     style: traStyle,
 });
 //traLayer.setStyle(traStyle);
@@ -336,10 +343,17 @@ $('#btn-import-from-url').click(function () {
                 if (JSONLayer.getBounds().isValid()) {
                     lmap.fitBounds(JSONLayer.getBounds());
                 }
+                toast({
+                    type: 'success',
+                    title: 'Import successfully'
+                })
             }
         })
         .fail(function () {
-            alert('Import Fail');
+            toast({
+                type: 'error',
+                title: 'Import failed'
+            })
         });
 });
 
@@ -354,6 +368,20 @@ $('#open-network-file').click(function () {
 $('#open-trajectory-file').click(function () {
     fileBtn.click();
 });
+
+
+function importFiles(files) {
+    //console.log(files);
+    for (let i = 0; i < files.length; i++) {
+        importFile(files[i]);
+    }
+
+    toast({
+        type: 'success',
+        title: 'Import ' + files.length + ' files successfully'
+    })
+
+}
 
 function importFile(selectedFile) {
     let reader = new FileReader();
@@ -405,8 +433,8 @@ function importFile(selectedFile) {
 
 fileBtn.addEventListener('change', function () {
     if (fileBtn.files && fileBtn.files[0]) {
-        let selectedFile = fileBtn.files[0];
-        importFile(selectedFile)
+        let selectedFiles = fileBtn.files;
+        importFiles(selectedFiles);
     }
 });
 
@@ -431,7 +459,7 @@ dragControl.on("drop", function (ev) {
     if (ev.originalEvent.dataTransfer && ev.originalEvent.dataTransfer.files.length) {
         ev.preventDefault();
         ev.stopPropagation();
-        importFile(ev.originalEvent.dataTransfer.files[0]);
+        importFiles(ev.originalEvent.dataTransfer.files);
     }
 });
 
@@ -503,65 +531,73 @@ function saveShp(data) {
 // Analyze
 let stayPointBtn = $('#btn-stay-point');
 stayPointBtn.on("click", function () {
-    traLayer.eachLayer(function (layer) {
-        let geojson = layer.toGeoJSON();
-        if (geojson['geometry']['type'] === 'LineString') {
-            //console.log(layer);
-            let time_stamps = geojson['properties']['time_stamps'];
-            let coors = geojson['geometry']['coordinates'];
-            let latlngs = coors.map(L.GeoJSON.coordsToLatLng);
-            let i = 0;
-            let j = 0;
-            let cells = [];
-            for (i = 0; i < latlngs.length; i++) {
-                for (j = i + 1; j < latlngs.length; j++) {
-                    if (L.CRS.EPSG4326.distance(latlngs[i], latlngs[j]) > 50) {
-                        if (time_stamps[j] - time_stamps[i] > 1200 * 1000 && j - i >= 4) {
-                            cells.push([i, j]);
+    if (!stayPointBtn.hasClass('disabled')) {
+
+        total_staypoints = 0;
+        traLayer.eachLayer(function (layer) {
+            let geojson = layer.toGeoJSON();
+            if (geojson['geometry']['type'] === 'LineString') {
+                //console.log(layer);
+                let time_stamps = geojson['properties']['time_stamps'];
+                let coors = geojson['geometry']['coordinates'];
+                let latlngs = coors.map(L.GeoJSON.coordsToLatLng);
+                let i = 0;
+                let j = 0;
+                let cells = [];
+                for (i = 0; i < latlngs.length; i++) {
+                    for (j = i + 1; j < latlngs.length; j++) {
+                        if (L.CRS.EPSG4326.distance(latlngs[i], latlngs[j]) > 50) {
+                            if (time_stamps[j] - time_stamps[i] > 1200 * 1000 && j - i >= 4) {
+                                cells.push([i, j]);
+                            }
+                            i = j;
+                            break;
                         }
-                        i = j;
-                        break;
                     }
+
                 }
+                console.log(cells);
+                total_staypoints += cells.length;
+                cells.map(function (cell) {
+                    lats = [];
+                    lngs = [];
+                    for (i = cell[0]; i < cell[1]; i++) {
+                        lats.push(latlngs[i].lat);
+                        lngs.push(latlngs[i].lng);
+                    }
+                    lat = lats.reduce(function (a, b) {
+                        return a + b;
+                    }, 0) / lats.length;
+                    lng = lngs.reduce(function (a, b) {
+                        return a + b;
+                    }, 0) / lngs.length;
+                    let staytime = time_stamps[cell[1] - 1] - time_stamps[cell[0]];
+
+                    let arrival = new Date(time_stamps[cell[0]]);
+                    let leave = new Date(time_stamps[cell[1] - 1]);
+
+                    let point = {
+                        "type": "Feature",
+                        "properties": {
+                            "stay time(min)": Math.round(staytime / 60000),
+                            "arrival time": arrival.getMonth() + "/" + arrival.getDay() + " " + arrival.getHours() + ":" + arrival.getMinutes(),
+                            "leave time": leave.getMonth() + "/" + leave.getDay() + " " + leave.getHours() + ":" + leave.getMinutes()
+
+                        },
+                        "geometry": {
+                            "type": "Point",
+                            "coordinates": [lng, lat]
+                        }
+                    };
+                    JSONLayer.addData(point);
+                });
 
             }
-            console.log(cells);
-
-            cells.map(function (cell) {
-                lats = [];
-                lngs = [];
-                for (i = cell[0]; i < cell[1]; i++) {
-                    lats.push(latlngs[i].lat);
-                    lngs.push(latlngs[i].lng);
-                }
-                lat = lats.reduce(function (a, b) {
-                    return a + b;
-                }, 0) / lats.length;
-                lng = lngs.reduce(function (a, b) {
-                    return a + b;
-                }, 0) / lngs.length;
-                let staytime = time_stamps[cell[1] - 1] - time_stamps[cell[0]];
-
-                let arrival = new Date(time_stamps[cell[0]]);
-                let leave = new Date(time_stamps[cell[1] - 1]);
-
-                let point = {
-                    "type": "Feature",
-                    "properties": {
-                        "stay time(min)": Math.round(staytime / 60000),
-                        "arrival time": arrival.getMonth() + "/" + arrival.getDay() + "/" + arrival.getHours() + ":" + arrival.getMinutes(),
-                        "leave time": leave.getMonth() + "/" + leave.getDay() + "/" + leave.getHours() + ":" + leave.getMinutes()
-
-                    },
-                    "geometry": {
-                        "type": "Point",
-                        "coordinates": [lng, lat]
-                    }
-                };
-                JSONLayer.addData(point);
-            });
-
-        }
-    })
+        });
+        toast({
+            type: 'success',
+            title: 'Extract ' + total_staypoints + ' stay points successfully'
+        })
+    }
 });
 
