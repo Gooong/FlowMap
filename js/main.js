@@ -40,12 +40,16 @@ const highlightStyle = {
 };
 
 function traStyleFunc(feature) {
-    return {
-        weight: 2,
-        color: randomColor({
+    if(!feature.properties['color']){
+        feature.properties['color'] = randomColor({
             luminosity: 'bright',
             hue: 'blue'
-        }),
+        });
+    }
+
+    return {
+        weight: 2,
+        color: feature.properties['color'],
     };
 }
 
