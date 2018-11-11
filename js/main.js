@@ -11,12 +11,11 @@ const featureStyle = {
 };
 
 const getColor = function (stayTime) {
-    return stayTime > 80 ? '#a50f15' :
-        stayTime > 40 ? '#de2d26' :
-            stayTime > 20 ? '#fb6a4a' :
-                stayTime > 10 ? '#fc9272' :
-                    stayTime > 5 ? '#fcbba1' :
-                        '#fee5d9';
+    return stayTime > 80 ? '#006d2c' :
+        stayTime > 40 ? '#2ca25f' :
+            stayTime > 20 ? '#66c2a4' :
+                stayTime > 10 ? '#b2e2e2' :
+                    '#edf8fb';
 };
 
 const featureStyleFunc = function (feature) {
@@ -24,6 +23,8 @@ const featureStyleFunc = function (feature) {
         let stayTime = feature.properties['stay time(min)'];
         if (stayTime) {
             return {
+                opacity: 1,
+                fillOpacity: 0.9,
                 color: getColor(stayTime),
             }
         } else {
@@ -41,7 +42,10 @@ const highlightStyle = {
 function traStyleFunc(feature) {
     return {
         weight: 2,
-        color: randomColor(),
+        color: randomColor({
+            luminosity: 'bright',
+            hue: 'blue'
+        }),
     };
 }
 
