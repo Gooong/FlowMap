@@ -38,10 +38,12 @@ const highlightStyle = {
     color: 'red',
 };
 
-const traStyle = {
-    weight: 2,
-    color: 'gray',
-};
+function traStyleFunc(feature) {
+    return {
+        weight: 2,
+        color: randomColor(),
+    };
+}
 
 const traHighlightStyle = {
     weight: 2,
@@ -74,7 +76,7 @@ let layerControls = L.control.layers(baseLayers).setPosition('bottomright').addT
 
 // trajectory layer
 let traLayer = new L.GeoJSON([], {
-    style: traStyle,
+    style: traStyleFunc,
     onEachFeature: onEachTraFeature,
 });
 //traLayer.setStyle(traStyle);
