@@ -8,10 +8,19 @@ const popupOption = {
 
 const featureStyle = {
     color: '#3388ff',
-
 };
 
-const highlightStye = {
+const highlightStyle = {
+    color: 'red',
+};
+
+const traStyle = {
+    weight: 2,
+    color: 'gray',
+};
+
+const traHighlightStyle = {
+    weight: 2,
     color: 'red',
 };
 
@@ -33,9 +42,32 @@ baseLayers['Street'].addTo(lmap);
 let layerControls = L.control.layers(baseLayers).setPosition('bottomright').addTo(lmap);
 
 // trajectory layer
-let traLayer = new L.FeatureGroup();
+let traLayer = new L.GeoJSON([],{
+    style: traStyle,
+});
+//traLayer.setStyle(traStyle);
 layerControls.addOverlay(traLayer, 'Trajectory');
 lmap.addLayer(traLayer);
+
+
+traLayer.on('layeradd', function (e) {
+    let layer = e.layer;
+    layer.bindPopup(function (target) {
+        if (target.feature && target.feature.properties) {
+            return propertiesToTable(target.feature.properties);
+        } else {
+            return 'No property';
+        }
+    }, popupOption);
+    layer.on('popupopen', function () {
+        layer.setStyle(traHighlightStyle);
+    });
+    layer.on('popupclose', function () {
+        layer.setStyle(traStyle);
+    });
+
+    filterTra(layer);
+});
 
 // create trajectory if the layer is instance of Polyline and contains 'timestamp' property
 function filterTra(layer) {
@@ -55,7 +87,7 @@ function filterTra(layer) {
 
         if (geojson['properties']['time_stamps']) {
             let timestamps = geojson['properties']['time_stamps'];
-            let intervals = []
+            let intervals = [];
             for (let i = 1; i < timestamps.length; i++) {
                 intervals.push(timestamps[i] - timestamps[i - 1]);
             }
@@ -68,7 +100,7 @@ function filterTra(layer) {
             let latlngs = coors.map(L.GeoJSON.coordsToLatLng);
             let movingMarker = L.Marker.movingMarker(latlngs, intervals, {loop: true});
             moving(movingMarker);
-            traLayer.addLayer(movingMarker)
+            traLayer.addLayer(movingMarker);
         }
     }
 }
@@ -88,13 +120,6 @@ function moving(marker) {
         }
     )
 }
-
-// let myMovingMarker = L.Marker.movingMarker([[39, 116], [22, 113]],
-//     [20000], {
-//         autostart: true,
-//         loop: true,
-//     });
-// traLayer.addLayer(myMovingMarker);
 
 
 // network layer
@@ -142,7 +167,7 @@ let networkLayer = L.geoJSON();
 lmap.addLayer(networkLayer);
 layerControls.addOverlay(networkLayer, 'Network');
 
-let newworkInfo = {};
+let networkInfo = {};
 
 function buildNetworkLayer(geoJsonFeatureCollection) {
     lmap.removeLayer(networkLayer);
@@ -173,11 +198,11 @@ function buildNetworkLayer(geoJsonFeatureCollection) {
 
         // betweennessCentrality
 
-        let btw_of_e = newworkInfo["btw"]._stringValues[ecity];
+        let btw_of_e = networkInfo["btw"]._stringValues[ecity];
         // eigenvectorCentrality
         // let eig_of_e = tmp["eig"]._stringValues[ecity];
         // clustering
-        let clu_of_e = newworkInfo["clu"]._stringValues[ecity];
+        let clu_of_e = networkInfo["clu"]._stringValues[ecity];
         // transitivity of flows
         // let tra_of_e = tmp["tra"]._stringValues[ecity];
 
@@ -228,9 +253,9 @@ function addNetwork(csvstring) {
             // let eig = jsnx.eigenvectorCentrality(G);
             let clu = jsnx.clustering(G);
             // let tra = jsnx.transitivity(G);
-            newworkInfo["btw"] = btw;
+            networkInfo["btw"] = btw;
             // tmp["eig"] = eig;
-            newworkInfo["clu"] = clu;
+            networkInfo["clu"] = clu;
             // tmp["tra"] = tra;
         }
     });
@@ -287,10 +312,9 @@ JSONLayer.on('layeradd', function (e) {
         } else {
             return 'No property';
         }
-
     }, popupOption);
     layer.on('popupopen', function () {
-        layer.setStyle(highlightStye);
+        layer.setStyle(highlightStyle);
     });
     layer.on('popupclose', function () {
         layer.setStyle(featureStyle);
@@ -302,7 +326,7 @@ JSONLayer.on('layeradd', function (e) {
 // import and export
 
 // import from url
-let urlInput = $('#url-address')[0]
+let urlInput = $('#url-address')[0];
 $('#btn-import-from-url').click(function () {
     let url = urlInput.value;
     $.get(url)
@@ -327,11 +351,14 @@ $('#open-geometry-file').click(function () {
 $('#open-network-file').click(function () {
     fileBtn.click();
 });
+$('#open-trajectory-file').click(function () {
+    fileBtn.click();
+});
 
 function importFile(selectedFile) {
     let reader = new FileReader();
-
-    if (selectedFile.name.endsWith('json')) {
+    let lower_name = selectedFile.name.toLowerCase();
+    if (lower_name.endsWith('json')) {
         reader.readAsText(selectedFile);
         reader.onload = function (e) {
             var json = JSON.parse(e.target.result);
@@ -341,7 +368,7 @@ function importFile(selectedFile) {
             }
         };
     }
-    else if (selectedFile.name.endsWith('zip')) {
+    else if (lower_name.endsWith('zip')) {
         reader.readAsArrayBuffer(selectedFile);
         reader.onload = function (e) {
             shp(e.target.result).then(function (geojson) {
@@ -352,22 +379,25 @@ function importFile(selectedFile) {
             })
         }
     }
-    else if (selectedFile.name.endsWith('csv')) {
+    else if (lower_name.endsWith('csv')) {
         reader.readAsText(selectedFile);
         reader.onload = function (e) {
             addNetwork(e.target.result);
         }
     }
-    else if (selectedFile.name.endsWith('gpx')) {
+    else if (lower_name.endsWith('gpx')) {
         reader.readAsText(selectedFile);
         reader.onload = function (e) {
             let data = e.target.result;
             let gpx = $.parseXML(data);
             let geojson = toGeoJSON.gpx(gpx);
             //console.log(geojson);
-            JSONLayer.addData(geojson);
-            if (JSONLayer.getBounds().isValid()) {
-                lmap.fitBounds(JSONLayer.getBounds());
+            traLayer.addData(geojson);
+            if (traLayer.getBounds().isValid()) {
+                lmap.fitBounds(traLayer.getBounds());
+                stayPointBtn.removeClass('disabled');
+            } else {
+                stayPointBtn.addClass('disabled');
             }
         }
     }
@@ -382,19 +412,20 @@ fileBtn.addEventListener('change', function () {
 
 
 // drag file
-$('#lmap').on("dragover", function (event) {
+let dragControl = $('#lmap');
+dragControl.on("dragover", function (event) {
     event.preventDefault();
     event.stopPropagation();
     $(this).addClass('dragging');
 });
 
-$('#lmap').on("dragleave", function (event) {
+dragControl.on("dragleave", function (event) {
     event.preventDefault();
     event.stopPropagation();
     $(this).removeClass('dragging');
 });
 
-$('#lmap').on("drop", function (ev) {
+dragControl.on("drop", function (ev) {
     ev.preventDefault();
     ev.stopPropagation();
     if (ev.originalEvent.dataTransfer && ev.originalEvent.dataTransfer.files.length) {
@@ -468,3 +499,69 @@ function saveShp(data) {
     };
     shpwrite.download(data, options);
 }
+
+// Analyze
+let stayPointBtn = $('#btn-stay-point');
+stayPointBtn.on("click", function () {
+    traLayer.eachLayer(function (layer) {
+        let geojson = layer.toGeoJSON();
+        if (geojson['geometry']['type'] === 'LineString') {
+            //console.log(layer);
+            let time_stamps = geojson['properties']['time_stamps'];
+            let coors = geojson['geometry']['coordinates'];
+            let latlngs = coors.map(L.GeoJSON.coordsToLatLng);
+            let i = 0;
+            let j = 0;
+            let cells = [];
+            for (i = 0; i < latlngs.length; i++) {
+                for (j = i + 1; j < latlngs.length; j++) {
+                    if (L.CRS.EPSG4326.distance(latlngs[i], latlngs[j]) > 50) {
+                        if (time_stamps[j] - time_stamps[i] > 1200 * 1000 && j - i >= 4) {
+                            cells.push([i, j]);
+                        }
+                        i = j;
+                        break;
+                    }
+                }
+
+            }
+            console.log(cells);
+
+            cells.map(function (cell) {
+                lats = [];
+                lngs = [];
+                for (i = cell[0]; i < cell[1]; i++) {
+                    lats.push(latlngs[i].lat);
+                    lngs.push(latlngs[i].lng);
+                }
+                lat = lats.reduce(function (a, b) {
+                    return a + b;
+                }, 0) / lats.length;
+                lng = lngs.reduce(function (a, b) {
+                    return a + b;
+                }, 0) / lngs.length;
+                let staytime = time_stamps[cell[1] - 1] - time_stamps[cell[0]];
+
+                let arrival = new Date(time_stamps[cell[0]]);
+                let leave = new Date(time_stamps[cell[1] - 1]);
+
+                let point = {
+                    "type": "Feature",
+                    "properties": {
+                        "stay time(min)": Math.round(staytime / 60000),
+                        "arrival time": arrival.getMonth() + "/" + arrival.getDay() + "/" + arrival.getHours() + ":" + arrival.getMinutes(),
+                        "leave time": leave.getMonth() + "/" + leave.getDay() + "/" + leave.getHours() + ":" + leave.getMinutes()
+
+                    },
+                    "geometry": {
+                        "type": "Point",
+                        "coordinates": [lng, lat]
+                    }
+                };
+                JSONLayer.addData(point);
+            });
+
+        }
+    })
+});
+

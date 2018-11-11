@@ -68,9 +68,10 @@
            aria-expanded="false">Import</a>
         <div class="dropdown-menu">
             <input type="file" multiple id="open-file-dialog" style="display: none"/>
-            <a class="dropdown-item" href="#" id="open-geometry-file" title="Support Shapefile, GeoJSON and GPX format">Geometry File</a>
+            <a class="dropdown-item" href="#" id="open-geometry-file" title="Support Shapefile, GeoJSON Format">Geometry File</a>
             <a class="dropdown-item" href="#" id="open-network-file" title="Support CSV format">Network File</a>
-            <a class="dropdown-item" href="#" id="import-from-url" data-toggle="modal" data-target="#input-url">GeoJSON From URL</a>
+            <a class="dropdown-item" href="#" id="open-trajectory-file" title="Support GPX format">Trajectory File</a>
+            <a class="dropdown-item" href="#" id="import-from-url" data-toggle="modal" data-target="#input-url">From URL</a>
         </div>
     </li>
 
@@ -84,9 +85,14 @@
         </div>
     </li>
 
-    <li class="nav-item">
-        <a class="nav-link disabled" href="#">Disabled</a>
+    <li class="nav-item dropdown">
+        <a class="nav-link dropdown-toggle" data-toggle="dropdown" href="#" role="button" aria-haspopup="true"
+           aria-expanded="false">Analyze</a>
+        <div class="dropdown-menu">
+            <a class="dropdown-item disabled" id="btn-stay-point" href="#">Stay Point</a>
+        </div>
     </li>
+
 
     <li class="nav-item">
         <a class="nav-link disabled" target="_blank" href="https://github.com/Gooong/FlowMap">
