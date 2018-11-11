@@ -10,6 +10,30 @@ const featureStyle = {
     color: '#3388ff',
 };
 
+const getColor = function (stayTime) {
+    return stayTime > 80 ? '#a50f15' :
+        stayTime > 40 ? '#de2d26' :
+            stayTime > 20 ? '#fb6a4a' :
+                stayTime > 10 ? '#fc9272' :
+                    stayTime > 5 ? '#fcbba1' :
+                        '#fee5d9';
+};
+
+const featureStyleFunc = function (feature) {
+    if (feature.geometry && feature.geometry.type === 'Point') {
+        let stayTime = feature.properties['stay time(min)'];
+        if (stayTime) {
+            return {
+                color: getColor(stayTime),
+            }
+        } else {
+            return featureStyle;
+        }
+    } else {
+        return featureStyle;
+    }
+};
+
 const highlightStyle = {
     color: 'red',
 };
@@ -51,14 +75,30 @@ let layerControls = L.control.layers(baseLayers).setPosition('bottomright').addT
 // trajectory layer
 let traLayer = new L.GeoJSON([], {
     style: traStyle,
+    onEachFeature: onEachTraFeature,
 });
 //traLayer.setStyle(traStyle);
 layerControls.addOverlay(traLayer, 'Trajectory');
 lmap.addLayer(traLayer);
 
+function highlightTraFeature(e) {
+    var layer = e.target;
+    layer.setStyle(traHighlightStyle);
+    if (!L.Browser.ie && !L.Browser.opera && !L.Browser.edge) {
+        layer.bringToFront();
+    }
+}
 
-traLayer.on('layeradd', function (e) {
-    let layer = e.layer;
+function resetTraHighlight(e) {
+    traLayer.resetStyle(e.target);
+}
+
+
+function onEachTraFeature(feature, layer) {
+    layer.on({
+        mouseover: highlightTraFeature,
+        mouseout: resetTraHighlight,
+    });
     layer.bindPopup(function (target) {
         if (target.feature && target.feature.properties) {
             return propertiesToTable(target.feature.properties);
@@ -66,15 +106,9 @@ traLayer.on('layeradd', function (e) {
             return 'No property';
         }
     }, popupOption);
-    layer.on('popupopen', function () {
-        layer.setStyle(traHighlightStyle);
-    });
-    layer.on('popupclose', function () {
-        layer.setStyle(traStyle);
-    });
-
     filterTra(layer);
-});
+}
+
 
 // create trajectory if the layer is instance of Polyline and contains 'timestamp' property
 function filterTra(layer) {
@@ -274,22 +308,55 @@ function addNetwork(csvstring) {
 let JSONLayer = new L.GeoJSON([], {
     pointToLayer: function (feature, latlng) {
         return L.circleMarker(latlng);
-    }
+    },
+    style: featureStyleFunc,
+    onEachFeature: onEachFeature,
 }).addTo(lmap);
+
+function highlightFeature(e) {
+    var layer = e.target;
+    layer.setStyle(highlightStyle);
+    if (!L.Browser.ie && !L.Browser.opera && !L.Browser.edge) {
+        layer.bringToFront();
+    }
+}
+
+function resetHighlight(e) {
+    JSONLayer.resetStyle(e.target);
+}
+
+function onEachFeature(feature, layer) {
+    layer.on({
+        mouseover: highlightFeature,
+        mouseout: resetHighlight,
+    });
+    layer.bindPopup(function (target) {
+        if (target.feature && target.feature.properties) {
+            return propertiesToTable(target.feature.properties);
+        } else {
+            return 'No property';
+        }
+    }, popupOption);
+    filterTra(layer);
+}
+
 layerControls.addOverlay(JSONLayer, 'Geometry');
 
 let drawControl = new L.Control.Draw({
     position: 'topright',
     edit: {
         featureGroup: JSONLayer,
+        repeatMode: true,
         selectedPathOptions: {
             maintainColor: true,
             moveMarkers: true
         }
     },
     draw: {
+        circlemarker: {
+            repeatMode: true,
+        },
         marker: false,
-        circlemarker: true,
         circle: false,
     },
 });
@@ -310,25 +377,6 @@ function propertiesToTable(properties) {
     content += '</tbody></table>';
     return content;
 }
-
-JSONLayer.on('layeradd', function (e) {
-    let layer = e.layer;
-    layer.bindPopup(function (target) {
-        if (target.feature && target.feature.properties) {
-            return propertiesToTable(target.feature.properties);
-        } else {
-            return 'No property';
-        }
-    }, popupOption);
-    layer.on('popupopen', function () {
-        layer.setStyle(highlightStyle);
-    });
-    layer.on('popupclose', function () {
-        layer.setStyle(featureStyle);
-    })
-
-    filterTra(layer);
-});
 
 // import and export
 
@@ -546,8 +594,8 @@ stayPointBtn.on("click", function () {
                 let cells = [];
                 for (i = 0; i < latlngs.length; i++) {
                     for (j = i + 1; j < latlngs.length; j++) {
-                        if (L.CRS.EPSG4326.distance(latlngs[i], latlngs[j]) > 50) {
-                            if (time_stamps[j-1] - time_stamps[i] > 1200 * 1000 && j - i >= 4) {
+                        if (L.CRS.EPSG4326.distance(latlngs[i], latlngs[j]) > 80) {
+                            if (time_stamps[j - 1] - time_stamps[i] > 1200 * 1000 && j - i >= 4) {
                                 cells.push([i, j]);
                             }
                             i = j;
