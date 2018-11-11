@@ -27,6 +27,7 @@ html, body {
     padding: 10px 10px 0;
     overflow-y: scroll;
     overflow-x: hidden;
+    resize: horizontal;
 }
 
 /* For geometry viewer property table */

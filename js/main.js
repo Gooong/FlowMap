@@ -26,7 +26,7 @@ const traHighlightStyle = {
 
 const toast = swal.mixin({
     toast: true,
-    position: 'bottom-end',
+    position: 'bottom-start',
     showConfirmButton: false,
     timer: 3000
 });
@@ -378,7 +378,7 @@ function importFiles(files) {
 
     toast({
         type: 'success',
-        title: 'Import ' + files.length + ' files successfully'
+        title: 'Import ' + files.length + ' file(s) successfully'
     })
 
 }
@@ -596,7 +596,7 @@ stayPointBtn.on("click", function () {
         });
         toast({
             type: 'success',
-            title: 'Extract ' + total_staypoints + ' stay points successfully'
+            title: 'Extract ' + total_staypoints + ' stay point(s) successfully'
         })
     }
 });
