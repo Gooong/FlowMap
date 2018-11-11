@@ -547,7 +547,7 @@ stayPointBtn.on("click", function () {
                 for (i = 0; i < latlngs.length; i++) {
                     for (j = i + 1; j < latlngs.length; j++) {
                         if (L.CRS.EPSG4326.distance(latlngs[i], latlngs[j]) > 50) {
-                            if (time_stamps[j] - time_stamps[i] > 1200 * 1000 && j - i >= 4) {
+                            if (time_stamps[j-1] - time_stamps[i] > 1200 * 1000 && j - i >= 4) {
                                 cells.push([i, j]);
                             }
                             i = j;
