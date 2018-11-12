@@ -39,12 +39,14 @@ const highlightStyle = {
     color: 'red',
 };
 
+let traColor = randomColor({
+    luminosity: 'bright',
+    hue: 'blue'
+});
+
 function traStyleFunc(feature) {
     if (!feature.properties['color']) {
-        feature.properties['color'] = randomColor({
-            luminosity: 'bright',
-            hue: 'blue'
-        });
+        feature.properties['color'] = traColor
     }
 
     return {
@@ -430,6 +432,7 @@ $('#open-trajectory-file').click(function () {
 
 function importFiles(files) {
     //console.log(files);
+    traColor = randomColor();
     for (let i = 0; i < files.length; i++) {
         importFile(files[i]);
     }
@@ -702,7 +705,7 @@ stayPointBtn.on("click", function () {
         toast({
             type: 'success',
             title: 'Extract ' + total_staypoints + ' stay point(s) successfully'
-        })
+        });
     }
 });
 
