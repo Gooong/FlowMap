@@ -40,7 +40,7 @@ const highlightStyle = {
 };
 
 function traStyleFunc(feature) {
-    if(!feature.properties['color']){
+    if (!feature.properties['color']) {
         feature.properties['color'] = randomColor({
             luminosity: 'bright',
             hue: 'blue'
@@ -587,64 +587,111 @@ function saveShp(data) {
 }
 
 // Analyze
+
+function timestampToString(timestamp) {
+    let date = new Date(timestamp);
+    return date.getMonth() + "/" + date.getDay() + " "
+        + date.getHours() + ":" + date.getMinutes();
+}
+
+function getCenter(coors) {
+    let lnglat = coors.reduce(function (a, b) {
+        return [a[0] + b[0], a[1] + b[1]];
+    }, [0, 0]);
+
+    return [lnglat[0] / coors.length, lnglat[1] / coors.length];
+}
+
+function getStayPoint(time_stamps, coors) {
+    // let latlngs = coors.map(L.GeoJSON.coordsToLatLng);
+    // let i = 0;
+    // let j = 0;
+    // let cells = [];
+    //
+    // for (i = 0; i < latlngs.length - 1; i++) {
+    //     if((L.CRS.EPSG4326.distance(latlngs[i], latlngs[i+1])*1000)
+    //         /(time_stamps[i+1] - time_stamps[i])>1){
+    //         continue;
+    //     }
+    //
+    //     for (j = i + 1; j < latlngs.length; j++) {
+    //         if (L.CRS.EPSG4326.distance(latlngs[i], latlngs[j]) > 80) {
+    //             if (time_stamps[j - 1] - time_stamps[i] > 1200 * 1000 && j - i >= 4) {
+    //                 cells.push([i + 1, j]);
+    //             }
+    //             i = j;
+    //             break;
+    //         }
+    //     }
+    // }
+    // return cells;
+
+    let latlngs = coors.map(L.GeoJSON.coordsToLatLng);
+    let i = 0;
+    let j = 0;
+    let m = 0;
+    let cells = [];
+    for (i = 0; i < latlngs.length; i++) {
+        for (j = i ; j < latlngs.length; j++) {
+            if (L.CRS.EPSG4326.distance(latlngs[i], latlngs[j]) > 80) {
+                if (time_stamps[j] - time_stamps[i]> 1200 * 1000 && j - i >= 3 && time_stamps[j-1] - time_stamps[i]> 1200 * 1000) {
+                    let a = i;
+                    let b = j;
+                    for(m = i ; m < j; m++){
+                        if ((L.CRS.EPSG4326.distance(latlngs[m], latlngs[m+1])*1000)/(time_stamps[m+1] - time_stamps[m])<=1){
+                            b=m+1 ;
+                        }
+                        else {
+                            if(b===m){
+                                if(time_stamps[b] - time_stamps[a]> 1200 * 1000){
+                                    cells.push([a, b]);
+                                }
+                                m=b-1;
+                                a=b-1;
+                                b=j;
+                            }
+                            a++;
+                        }
+                    }
+                    // cells.push([i, j-1]);
+                }
+                i = j;
+                break;
+            }
+        }
+
+    }
+    return cells;
+}
+
 let stayPointBtn = $('#btn-stay-point');
 stayPointBtn.on("click", function () {
     if (!stayPointBtn.hasClass('disabled')) {
 
-        total_staypoints = 0;
+        let total_staypoints = 0;
         traLayer.eachLayer(function (layer) {
             let geojson = layer.toGeoJSON();
             if (geojson['geometry']['type'] === 'LineString') {
                 //console.log(layer);
                 let time_stamps = geojson['properties']['time_stamps'];
                 let coors = geojson['geometry']['coordinates'];
-                let latlngs = coors.map(L.GeoJSON.coordsToLatLng);
-                let i = 0;
-                let j = 0;
-                let cells = [];
-                for (i = 0; i < latlngs.length; i++) {
-                    for (j = i + 1; j < latlngs.length; j++) {
-                        if (L.CRS.EPSG4326.distance(latlngs[i], latlngs[j]) > 80) {
-                            if (time_stamps[j - 1] - time_stamps[i] > 1200 * 1000 && j - i >= 4) {
-                                cells.push([i, j]);
-                            }
-                            i = j;
-                            break;
-                        }
-                    }
+                let cells = getStayPoint(time_stamps, coors);
 
-                }
-                console.log(cells);
                 total_staypoints += cells.length;
                 cells.map(function (cell) {
-                    lats = [];
-                    lngs = [];
-                    for (i = cell[0]; i < cell[1]; i++) {
-                        lats.push(latlngs[i].lat);
-                        lngs.push(latlngs[i].lng);
-                    }
-                    lat = lats.reduce(function (a, b) {
-                        return a + b;
-                    }, 0) / lats.length;
-                    lng = lngs.reduce(function (a, b) {
-                        return a + b;
-                    }, 0) / lngs.length;
-                    let staytime = time_stamps[cell[1] - 1] - time_stamps[cell[0]];
-
-                    let arrival = new Date(time_stamps[cell[0]]);
-                    let leave = new Date(time_stamps[cell[1] - 1]);
+                    let centerCoor = getCenter(coors.slice(cell[0], cell[1]));
+                    let staytime = time_stamps[cell[1]] - time_stamps[cell[0]];
 
                     let point = {
                         "type": "Feature",
                         "properties": {
                             "stay time(min)": Math.round(staytime / 60000),
-                            "arrival time": arrival.getMonth() + "/" + arrival.getDay() + " " + arrival.getHours() + ":" + arrival.getMinutes(),
-                            "leave time": leave.getMonth() + "/" + leave.getDay() + " " + leave.getHours() + ":" + leave.getMinutes()
-
+                            "arrival time": timestampToString(time_stamps[cell[0]]),
+                            "leave time": timestampToString(time_stamps[cell[1]]),
                         },
                         "geometry": {
                             "type": "Point",
-                            "coordinates": [lng, lat]
+                            "coordinates": centerCoor
                         }
                     };
                     JSONLayer.addData(point);
