@@ -598,7 +598,7 @@ function saveShp(data) {
 
 function timestampToString(timestamp) {
     let date = new Date(timestamp);
-    return date.toLocaleTimeString()+', '+ date.toLocaleDateString();
+    return date.toLocaleTimeString() + ', ' + date.toLocaleDateString();
     // return date.getMonth() + "/" + date.getDay() + " "
     //     + date.getHours() + ":" + date.getMinutes();
 }
@@ -641,28 +641,37 @@ function getStayPoint(time_stamps, coors) {
     let m = 0;
     let cells = [];
     for (i = 0; i < latlngs.length; i++) {
-        for (j = i ; j < latlngs.length; j++) {
+        for (j = i; j < latlngs.length; j++) {
             if (L.CRS.EPSG4326.distance(latlngs[i], latlngs[j]) > 80) {
-                if (time_stamps[j] - time_stamps[i]> 1200 * 1000 && j - i >= 3 && time_stamps[j-1] - time_stamps[i]> 1200 * 1000) {
+                if (time_stamps[j] - time_stamps[i] > 1200 * 1000 && j - i >= 3 && time_stamps[j - 1] - time_stamps[i] > 1200 * 1000) {
                     let a = i;
                     let b = j;
-                    for(m = i ; m < j; m++){
-                        if ((L.CRS.EPSG4326.distance(latlngs[m], latlngs[m+1])*1000)/(time_stamps[m+1] - time_stamps[m])<=1){
-                            b=m+1 ;
+                    let c = 0;
+                    let d = 0;
+                    let temp = [];
+                    for (m = i; m < j; m++) {
+                        if ((L.CRS.EPSG4326.distance(latlngs[m], latlngs[m + 1]) * 1000) / (time_stamps[m + 1] - time_stamps[m]) <= 1) {
+                            b = m + 1;
                         }
                         else {
-                            if(b===m){
-                                if(time_stamps[b] - time_stamps[a]> 1200 * 1000){
-                                    cells.push([a, b]);
+                            if (b === m) {
+                                if (time_stamps[b] - time_stamps[a] > 1200 * 1000) {
+                                    temp.push([a, b]);
                                 }
-                                m=b-1;
-                                a=b-1;
-                                b=j;
+                                m = b - 1;
+                                a = b - 1;
+                                b = j;
                             }
                             a++;
                         }
                     }
-                    // cells.push([i, j-1]);
+
+                    if (temp.length > 0) {
+                        c = temp[0][0];
+                        d = temp[temp.length - 1][1];
+                        cells.push([c, d]);
+                    }
+
                 }
                 i = j;
                 break;
