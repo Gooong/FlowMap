@@ -307,14 +307,17 @@ function addNetwork(csvstring) {
             });
             // graph creating
             G.addEdgesFrom(edges);
-            let btw = jsnx.betweennessCentrality(G);
-            // let eig = jsnx.eigenvectorCentrality(G);
-            let clu = jsnx.clustering(G);
-            // let tra = jsnx.transitivity(G);
-            networkInfo["btw"] = btw;
-            // tmp["eig"] = eig;
-            networkInfo["clu"] = clu;
-            // tmp["tra"] = tra;
+            setTimeout(function () {
+                let btw = jsnx.betweennessCentrality(G);
+                // let eig = jsnx.eigenvectorCentrality(G);
+                let clu = jsnx.clustering(G);
+                // let tra = jsnx.transitivity(G);
+                networkInfo["btw"] = btw;
+                // tmp["eig"] = eig;
+                networkInfo["clu"] = clu;
+                // tmp["tra"] = tra;
+            });
+
         }
     });
 }
