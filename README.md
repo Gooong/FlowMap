@@ -22,6 +22,6 @@ You can choose specific background layers depending by yourself. Flow Map provid
 - **Edit:** You can draw polylines ,polygons , rectangles or circlemarkers based on your needs. Of course, you can also cancel your editing if you feel that is unnecessary or false.
 - **Analyze:** Based on the trajectories you import ,Flow map can analyze the stay point.
 
-### Author
+### Contributor
 
 @ShangSS@GXIU@GuoJX@XingXY@GongXR
