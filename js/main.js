@@ -598,8 +598,9 @@ function saveShp(data) {
 
 function timestampToString(timestamp) {
     let date = new Date(timestamp);
-    return date.getMonth() + "/" + date.getDay() + " "
-        + date.getHours() + ":" + date.getMinutes();
+    return date.toLocaleTimeString()+', '+ date.toLocaleDateString();
+    // return date.getMonth() + "/" + date.getDay() + " "
+    //     + date.getHours() + ":" + date.getMinutes();
 }
 
 function getCenter(coors) {
