@@ -267,6 +267,11 @@ function buildNetworkLayer(geoJsonFeatureCollection) {
             'Clustering coefficient': clu_of_e,
             // 'Transitivity': tra_of_e,
         })).openOn(lmap);
+
+        let layer = e.layer;
+        if (!L.Browser.ie && !L.Browser.opera && !L.Browser.edge) {
+            layer.bringToFront();
+        }
     });
     // networkLayer.on('mouseout', function (e) {
     //     networkLayer.clearAllPathSelections();
