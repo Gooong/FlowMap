@@ -1,6 +1,6 @@
 ## Flow Map
 
-Simple tools for visualize geometry, trajectory and network.
+Simple tools for visualizing geometry, trajectory and network.
 
 ![Inferface of Flow Map](docs/image/inferface.png)
 
